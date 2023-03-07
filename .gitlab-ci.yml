@@ -1,0 +1,156 @@
+# 改这里
+variables:
+  DOCKER_IMAGE_NAME: oray/lottery-tool.oray.com # docker镜像的路径部分
+  TESTING_K8S_NAMESPACE: oray # 测试环境k8s的namespace
+  STAGGING_K8S_NAMESPACE: oray-frontend # 预发环境k8s的namespace
+  TESTING_DEPLOYMENT_NAME: console-domain # 跟deployment里要对上
+  STAGGING_DEPLOYMENT_NAME: console-domain # 跟deployment里要对上
+  TESTING_DOCKERFILE: Dockerfile # 测试环境打镜像的 Dockerfile
+  BUILD_TYPE: docker # 暂时只有docker（打镜像）, archive（打包）
+  DEPLOY_TYPE: k8s # 暂时只有k8s, webhook
+  TESTING_DEPLOY_WEBHOOK: ' ' # 测试部署的jenkins webhook
+  STAGGING_DEPLOY_WEBHOOK: ' ' # 预发部署的jenkins webhook
+  PRODUCTION_DEPLOY_WEBHOOK: ' ' # 生产环境部署的jenkins webhook（好像暂时没有）
+
+# 下面一般不动
+
+stages:
+  - check
+  - pre-build
+  - build
+  - deploy
+  - test
+
+# ========================= pre-build =========================
+install-deps:
+  stage: pre-build
+  image:
+    name: hbdev.oray.com/dev/node:18.12.1-alpine
+  tags:
+    - 'frontend'
+  cache:
+    key: 'DOCKER_BUILDER_NODEMODULES_${CI_COMMIT_BRANCH}'
+    paths:
+      - node_modules/
+  script:
+    - npm install --registry=http://npm.orayer.com:7001
+  only:
+    changes:
+      - package-lock.json
+      - pnpm-lock.yaml
+      - yarn-lock.json
+    refs:
+      - tags
+      #- master
+      - /^testing*/
+      - /^release*/
+
+# ========================= build =========================
+# docker镜像的
+docker-build:
+  # Use the official docker image.
+  image:
+    name: docker:20.10.17
+    #pull_policy: if-not-present
+  stage: build
+  tags:
+    - 'frontend'
+  services:
+    - docker:20.10.17-dind
+  cache:
+    key: 'DOCKER_BUILDER_NODEMODULES_${CI_COMMIT_BRANCH}'
+    paths:
+      - node_modules/
+  before_script:
+    - |
+      HARBOR_REGISTRY=$PRODUCTION_HARBOR_REGISTRY
+      HARBOR_USERNAME=$PRODUCTION_HARBOR_USERNAME
+      HARBOR_PASSWORD=$PRODUCTION_HARBOR_PASSWORD
+      if [[ "$CI_COMMIT_BRANCH" =~ ^testing* ]]; then
+        echo "image will publish to testing repository!"
+        HARBOR_REGISTRY=$TESTING_HARBOR_REGISTRY
+        HARBOR_USERNAME=$TESTING_HARBOR_USERNAME
+        HARBOR_PASSWORD=$TESTING_HARBOR_PASSWORD
+      fi
+    - docker login -u "$HARBOR_USERNAME" -p "$HARBOR_PASSWORD" $HARBOR_REGISTRY
+  script:
+    - |
+      DOCKERFILE_NAME=$PRODUCTION_DOCKERFILE
+      if [[ "$CI_COMMIT_BRANCH" =~ ^testing* ]]; then
+        DOCKERFILE_NAME=$TESTING_DOCKERFILE
+        tag=":testing"
+      elif [[ "$CI_COMMIT_BRANCH" =~ ^release* ]]; then
+        tag=":stagging"
+      elif [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+        tag=""
+        echo "Running on default branch '$CI_DEFAULT_BRANCH': tag = 'latest'"
+      else
+        tagName=${CI_COMMIT_REF_SLUG//-/.}
+        tag=":${tagName//v/}"
+        echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
+      fi
+      echo "prepared to build docker image: ${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}"
+    - docker build . -t "${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}" -f docker/$DOCKERFILE_NAME --build-arg OSS_ACCESS_KEY="${STATIC_OSS_ACCESS_KEY}" --build-arg OSS_ACCESS_SECRET="${STATIC_OSS_ACCESS_SECRET}"  --build-arg OSS_ENDPOINT="${STATIC_OSS_ENDPOINT}"
+    - docker push "${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}"
+  # Run this job in a branch where a Dockerfile exists
+  only:
+    refs:
+      - tags
+      #- master
+      - /^testing*/
+      - /^release*/
+    variables:
+      - $BUILD_TYPE == "docker"
+# ========================= deploy =========================
+deploy-k8s:
+  stage: deploy
+  tags:
+    - 'public'
+  image: meltwaterfoundation/drone-kubectl:1.18
+  script:
+    - |
+      repo="harbor-internal.oray.com"
+      repourl="oray-registry-internal"
+      if [[ "$CI_COMMIT_BRANCH" =~ ^testing* ]]; then
+        conf="testing"
+        ns=$TESTING_K8S_NAMESPACE
+        svr=$TESTING_K8S_SERVER
+        token=$TESTING_K8S_TOKEN
+        deployment=$TESTING_DEPLOYMENT_NAME
+        repo="testenv-harbor-internal.oray.com"
+        repourl="oray-registry"
+        user="oraywebdev"
+      elif [[ "$CI_COMMIT_BRANCH" =~ ^release* ]]; then
+        conf="stagging"
+        ns=$STAGGING_K8S_NAMESPACE
+        svr=$STAGGING_K8S_SERVER
+        token=$STAGGING_K8S_TOKEN
+        deployment=$STAGGING_DEPLOYMENT_NAME
+        user="orayfrontend"
+      else
+        echo "not a valid branch deploy by gitlab-ci"
+        exit -1
+      fi
+      kubectl config set-cluster kubernetes --insecure-skip-tls-verify=true --server=$svr
+      kubectl config set-credentials $user --token=$token
+      kubectl config set-context deploy --cluster=kubernetes --user=$user
+      kubectl config use-context deploy
+      sed -i "s/harbor-internal.oray.com/$repo/g" ./deployment/k8s/deployment*.yaml # 测试换镜像地址
+      sed -i "s/oray-registry-internal/$repourl/g" ./deployment/k8s/deployment*.yaml # 测试换镜像地址
+      sed -i "s/%REPLICAS%/1/g" ./deployment/k8s/deployment*.yaml # 副本数
+      sed -i "s/%NAMESPACE%/$ns/g" ./deployment/k8s/*.yaml # 部署命名空间
+      sed -i "s/%TIME%/30/g" ./deployment/k8s/deployment*.yaml # 容器启动到应用正常提供服务时间变量
+      sed -i "s/%REQUEST_CPU%/0/g" ./deployment/k8s/deployment*.yaml
+      sed -i "s/%REQUEST_MEM%/0/g" ./deployment/k8s/deployment*.yaml
+      sed -i "s/%LIMITS_CPU%/0/g" ./deployment/k8s/deployment*.yaml
+      sed -i "s/%LIMITS_MEM%/0/g" ./deployment/k8s/deployment*.yaml
+      sed -i "s/%TAG%/$conf/g" ./deployment/k8s/deployment*.yaml # 镜像版本号
+      kubectl apply -f ./deployment/k8s/deployment.yaml -n $ns
+      kubectl apply -f ./deployment/k8s/${conf}-ingress.yaml -n $ns # 只有这里用的配置文件不一样
+      kubectl rollout restart deployment $deployment -n $ns
+  only:
+    refs:
+      - /^testing*/
+      - /^release*/
+    variables:
+      - $DEPLOY_TYPE == "k8s"

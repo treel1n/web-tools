@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations: {}
+  namespace: %NAMESPACE%
+  name: lottery-tool
+  labels:
+    app: lottery-tool
+    k8s.kuboard.cn/layer: web
+spec:
+  selector:
+    matchLabels:
+      app: lottery-tool
+  replicas: %REPLICAS% #副本数
+  minReadySeconds: %TIME% #容器启动到应用正常提供服务时间变量
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25% #滚动更新中最多超过预期值的pod数
+      maxUnavailable: 25% #滚动更新中最多不可用的 po数
+  template:
+    metadata:
+      labels:
+        app: lottery-tool
+    spec:
+      imagePullSecrets:
+        - name: oray-registry-internal
+      containers:
+        - image: harbor-internal.oray.com/oray/lottery-tool.oray.com:%TAG%
+          imagePullPolicy: Always
+          name: lottery-tool
+          resources:
+            requests:
+              cpu: %REQUEST_CPU% #CPU申请变量
+              memory: %REQUEST_MEM% #内存申请变量
+            limits:
+              cpu: %LIMITS_CPU% #CPU限制变量
+              memory: %LIMITS_MEM% #内存限制变量
+          livenessProbe: #存活检查
+            httpGet:
+              path: /favicon.ico
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 3 #容器启动后第一次执行探测需要等待的时间。默认值是 0 ，最小值也是 0。
+            periodSeconds: 10 #执行探测的频率。默认是 10 秒，最小 1 秒。
+            successThreshold: 1 #探测失败后，最少连续探测成功多少次才被认定为成功。默认是 1，最小值是 1。注意：对于存活探针，此项必须是 1。
+            timeoutSeconds: 5 #探测超时时间，探测未在改时间内完成将被视为失败。默认 1 秒，最小 1 秒。
+            failureThreshold: 3 #探测成功后，最少连续探测失败多少次才被认定为失败。默认是 3，最小值是 1。
+          readinessProbe: #就绪检查
+            httpGet:
+              path: /favicon.ico
+              port: 3000
+              scheme: HTTP
+            initialDelaySeconds: 3 #容器启动后第一次执行探测需要等待的时间。默认值是 0 ，最小值也是 0。
+            periodSeconds: 10 #执行探测的频率。默认是 10 秒，最小 1 秒。
+            successThreshold: 1 #探测失败后，最少连续探测成功多少次才被认定为成功。默认是 1，最小值是 1。注意：对于存活探针，此项必须是 1。
+            timeoutSeconds: 5 #探测超时时间，探测未在改时间内完成将被视为失败。默认 1 秒，最小 1 秒。
+            failureThreshold: 3 #探测成功后，最少连续探测失败多少次才被认定为失败。默认是 3，最小值是 1。
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: %NAMESPACE%
+  name: lottery-tool
+spec:
+  selector:
+    app: lottery-tool
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
