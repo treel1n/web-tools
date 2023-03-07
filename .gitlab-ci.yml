@@ -15,11 +15,9 @@ variables:
 # 下面一般不动
 
 stages:
-  - check
   - pre-build
   - build
   - deploy
-  - test
 
 # ========================= pre-build =========================
 install-deps:
@@ -90,7 +88,7 @@ docker-build:
         echo "Running on branch '$CI_COMMIT_BRANCH': tag = $tag"
       fi
       echo "prepared to build docker image: ${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}"
-    - docker build . -t "${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}" -f docker/$DOCKERFILE_NAME --build-arg OSS_ACCESS_KEY="${STATIC_OSS_ACCESS_KEY}" --build-arg OSS_ACCESS_SECRET="${STATIC_OSS_ACCESS_SECRET}"  --build-arg OSS_ENDPOINT="${STATIC_OSS_ENDPOINT}"
+    - docker build . -t "${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}" -f $DOCKERFILE_NAME --build-arg OSS_ACCESS_KEY="${STATIC_OSS_ACCESS_KEY}" --build-arg OSS_ACCESS_SECRET="${STATIC_OSS_ACCESS_SECRET}"  --build-arg OSS_ENDPOINT="${STATIC_OSS_ENDPOINT}"
     - docker push "${HARBOR_REGISTRY}/${DOCKER_IMAGE_NAME}${tag}"
   # Run this job in a branch where a Dockerfile exists
   only:
