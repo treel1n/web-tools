@@ -143,12 +143,14 @@ const Code = () => {
           columns={[
             { title: "mobile", showSortIcon: false },
             { title: "time", showSortIcon: false },
+            { title: "code", showSortIcon: false },
             { title: "type", showSortIcon: false },
             { title: "action", showSortIcon: false },
           ]}
           rows={result.map((item) => [
             item.target,
             fmtDate(new Date(item.create_time)),
+            item.type,
             item.code,
             <>
               <Button
