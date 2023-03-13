@@ -2,23 +2,23 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   namespace: %NAMESPACE%
-  name: lottery-tool
+  name: web-tools
   annotations:
     kubernetes.io/ingress.class: 'nginx'
 spec:
   rules:
-    - host: 'lottery.oraybeta.com'
+    - host: 'web-tools.oraybeta.com'
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: lottery-tool
+                name: web-tools
                 port:
                   number: 3000
 
   tls:
     - hosts:
-        - lottery.oraybeta.com
+        - web-tools.oraybeta.com
       secretName: tls-oraybeta.com
