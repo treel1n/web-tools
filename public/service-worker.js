@@ -28,20 +28,6 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// When there's an incoming fetch request, try and respond with a precached resource, otherwise fall back to the network
-self.addEventListener('fetch', (event) => {
-  console.log('Fetch intercepted for:', event.request.url);
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      console.log(cachedResponse, event.request)
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    }),
-  );
-});
-
 let util = {
   fetchPut: function (request, callback) {
     return fetch(request).then((response) => {
@@ -90,21 +76,21 @@ let util = {
   },
 };
 
-this.addEventListener("fetch", function (event) {
-  console.log("Fetch intercepted for:", event.request.url);
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      // cache hit
-      if (response) {
-        //如果取的是html，则看发个请求看html是否更新了
-        // if (response.headers.get("Content-Type").indexOf("text/html") >= 0) {
-        //   console.log("update html");
-        //   let url = new URL(event.request.url);
-        //   util.updateHtmlPage(url, event.request.clone(), event.clientId);
-        // }
-        return response;
-      }
-      return util.fetchPut(event.request.clone());
-    })
-  );
-});
+// this.addEventListener("fetch", function (event) {
+//   console.log("Fetch intercepted for:", event.request.url);
+//   event.respondWith(
+//     caches.match(event.request).then((response) => {
+//       // cache hit
+//       if (response) {
+//         //如果取的是html，则看发个请求看html是否更新了
+//         // if (response.headers.get("Content-Type").indexOf("text/html") >= 0) {
+//         //   console.log("update html");
+//         //   let url = new URL(event.request.url);
+//         //   util.updateHtmlPage(url, event.request.clone(), event.clientId);
+//         // }
+//         return response;
+//       }
+//       return util.fetchPut(event.request.clone());
+//     })
+//   );
+// });
