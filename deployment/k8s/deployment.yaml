@@ -3,14 +3,14 @@ kind: Deployment
 metadata:
   annotations: {}
   namespace: %NAMESPACE%
-  name: lottery-tool
+  name: web-tools
   labels:
-    app: lottery-tool
+    app: web-tools
     k8s.kuboard.cn/layer: web
 spec:
   selector:
     matchLabels:
-      app: lottery-tool
+      app: web-tools
   replicas: %REPLICAS% #副本数
   minReadySeconds: %TIME% #容器启动到应用正常提供服务时间变量
   strategy:
@@ -21,14 +21,14 @@ spec:
   template:
     metadata:
       labels:
-        app: lottery-tool
+        app: web-tools
     spec:
       imagePullSecrets:
         - name: oray-registry-internal
       containers:
-        - image: harbor-internal.oray.com/oray/lottery-tool.oray.com:%TAG%
+        - image: harbor-internal.oray.com/oray/web-tools.oray.com:%TAG%
           imagePullPolicy: Always
-          name: lottery-tool
+          name: web-tools
           resources:
             requests:
               cpu: %REQUEST_CPU% #CPU申请变量
@@ -62,10 +62,10 @@ apiVersion: v1
 kind: Service
 metadata:
   namespace: %NAMESPACE%
-  name: lottery-tool
+  name: web-tools
 spec:
   selector:
-    app: lottery-tool
+    app: web-tools
   type: ClusterIP
   ports:
     - name: http

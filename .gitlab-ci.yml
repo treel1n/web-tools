@@ -1,10 +1,10 @@
 # 改这里
 variables:
-  DOCKER_IMAGE_NAME: oray/lottery-tool.oray.com # docker镜像的路径部分
+  DOCKER_IMAGE_NAME: oray/web-tools.oray.com # docker镜像的路径部分
   TESTING_K8S_NAMESPACE: oray # 测试环境k8s的namespace
   STAGGING_K8S_NAMESPACE: oray-frontend # 预发环境k8s的namespace
-  TESTING_DEPLOYMENT_NAME: console-domain # 跟deployment里要对上
-  STAGGING_DEPLOYMENT_NAME: console-domain # 跟deployment里要对上
+  TESTING_DEPLOYMENT_NAME: web-tools # 跟deployment里要对上
+  STAGGING_DEPLOYMENT_NAME: web-tools # 跟deployment里要对上
   TESTING_DOCKERFILE: Dockerfile # 测试环境打镜像的 Dockerfile
   BUILD_TYPE: docker # 暂时只有docker（打镜像）, archive（打包）
   DEPLOY_TYPE: k8s # 暂时只有k8s, webhook
