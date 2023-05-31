@@ -14,6 +14,7 @@ const Lottery = () => {
   const [showEmptyAlert, setShowEmptyAlert] = useState(false)
   const [raffle, setRaffle] = useState(false)
   const [historySelect, setHistorySelect] = useState<number|string>()
+  const [timer, setTimer] = useState<NodeJS.Timer>()
 
   useMemo(async () => {
     const res = await DB.getData('Lottery')
@@ -36,29 +37,29 @@ const Lottery = () => {
     const optionsLength = options.length
     if (!optionsLength) return setShowEmptyAlert(true)
     setRaffle(true)
-
-    const stop = 3
-    let count = 0
     const t = setInterval(() => {
       const random = ~~(Math.random() * optionsLength)
       setReward(options[random])
-      count++
-      if (count === (stop * 1000 / 20)) {
-        clearInterval(t)
-        for (let i = 1; i <= 10; i++) {
-          (function (j) {
-            setTimeout(() => {
-              const random = ~~(Math.random() * optionsLength)
-              setReward(options[random])
-              if (j === 10) {
-                setShowResult(true)
-                setRaffle(false)
-              }
-            }, j * j * 15);
-          })(i);
-        }
-      }
     }, 20)
+    setTimer(t)
+  }
+  const stop = () => {
+    clearInterval(timer)
+    setTimer(undefined)
+    const options = parseFromInput()
+    const optionsLength = options.length
+    for (let i = 1; i <= 10; i++) {
+      (function (j) {
+        setTimeout(() => {
+          const random = ~~(Math.random() * optionsLength)
+          setReward(options[random])
+          if (j === 10) {
+            setShowResult(true)
+            setRaffle(false)
+          }
+        }, j * j * 15);
+      })(i);
+    }
   }
 
   const saveToHistory  = async () => {
@@ -115,9 +116,9 @@ const Lottery = () => {
         <div className={styles.lotteryConfigOperate}>
           <Button
             type="primary"
-            onClick={start}
-            value="Start"
-            isLoading={raffle}
+            onClick={raffle ? stop : start}
+            value={raffle  ? 'Stop' : 'Start'}
+            isLoading={raffle && !timer}
           />
           <InputText
             value={memo}

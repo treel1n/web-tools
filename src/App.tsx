@@ -5,7 +5,6 @@ import Img from "@/assets/mountain.jpg";
 import Introduce from './pages/Introduce'
 
 const Lottery = lazy(() => import("./pages/Lottery"))
-const Code = lazy(() => import("./pages/Code"))
 
 const SuspenseLoading: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (<Suspense fallback={<LoaderBar
@@ -42,18 +41,11 @@ const App: React.FC = () => {
           icon={<i className="icons10-emoji-smile"></i>}
         />
 
-        <NavBarLink
-          to="/code"
-          text="Code"
-          icon={<i className="icons10-iphone"></i>}
-        />
-
       </NavBar>
 
       <Routes>
         <Route path="/" element={<Introduce />} />
         <Route path="/lottery" element={<SuspenseLoading><Lottery /></SuspenseLoading>} />
-        <Route path="/code" element={<SuspenseLoading><Code /></SuspenseLoading>} />
       </Routes>
 
     </Router>
