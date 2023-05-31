@@ -24,4 +24,5 @@ export default defineConfig({
       localsConvention: "camelCase",
     },
   },
+  base: '/web-tools/'
 });
